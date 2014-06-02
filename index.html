@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>テトリスにしようかな</title>
+<style>
+#img {
+  display: none;   
+}
+.pressed {
+  color: red;
+}
+</style>
+</head>
+<body>
+<img id="img" src="src/cojt1.png"></img>
+<canvas id="canvas" width="800" height="400"></canvas>
+<div id="gamepad-info"></div>
+<div id="button_length"></div>
+<h1>ゲームパッドの入力テスト</h1>
+
+<script>
+// values of canvas
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+// values of images
+var img = document.getElementById("img");
+var x = 0;
+var y = 0;
+var vx = 0;
+var vy = 0;
+// gamepad
+var haveEvents = "GamepadEvent" in window;
+var controllers = {};
+var rAF = window.mozRequestAnimationFrame ||
+window.webkitRequestAnimationFrame ||
+window.requestAnimationFrame;
+// 押されたゲームパッドのボタンオブジェクト
+var pressbutton = {};
+// スティックのオブジェクト
+var gamepadAxes = {"0": "0", "1": "0"};
+
+// gamepadの各値を取得
+function connecthandler(e) {
+  addgamepad(e.gamepad);
+}
+function addgamepad(gamepad) {
+  controllers[gamepad.index] = gamepad;
+  var d = document.createElement("div");
+  d.setAttribute("id", "controller" + gamepad.index);
+  var t = document.createElement("h1");
+  t.appendChild(document.createTextNode("接続されているゲームパッド: " + gamepad.id));
+  d.appendChild(t);
+  var b = document.createElement("div");
+  b.className = "buttons";
+  for (var i=0; i<gamepad.buttons.length; i++) {
+    var e = document.createElement("span");
+    e.className = "button";
+    // e.id = "b" + i;
+    e.innerHTML = i;
+    b.appendChild(e);
+  }
+  d.appendChild(b);
+  var a = document.createElement("div");
+  a.className = "axes";
+  for (var i=0; i<gamepad.axes.length; i++) {
+    var e = document.createElement("progress");
+    e.className = "axis";
+    // e.id = "a" + i;
+    e.setAttribute("max", "2");
+    e.setAttribute("value", "1");
+    e.innerHTML = i;
+    a.appendChild(e);
+  }
+  d.appendChild(a);
+  document.body.appendChild(d);
+
+  rAF(updateStatus);
+}
+
+function disconnecthandler(e) {
+  removegamepad(e.gamepad);
+}
+
+function removegamepad(gamepad) {
+  var d = document.getElementById("controller" + gamepad.index);
+  document.body.removeChild(d);
+  delete controllers[gamepad.index];
+}
+
+function updateStatus() {
+  if (!haveEvents) {
+    scangamepads();
+  }
+  for (j in controllers) {
+    var controller = controllers[j];
+    var d = document.getElementById("controller" + j);
+    var buttons = d.getElementsByClassName("button");
+    for (var i=0; i<controller.buttons.length; i++) {
+      var b = buttons[i];
+      var val = controller.buttons[i];
+      var pressed = val == 1.0;
+      if (typeof(val) == "object") {
+        pressed = val.pressed;
+        val = val.value; 
+      }
+      if (pressed) {
+        b.className = "button pressed";
+        console.log("button" + i + " is pressed.")
+        pressbutton[i] = true;
+      } else {
+        b.className = "button";
+        pressbutton[i] = false;
+      }
+    }
+
+    var axes = d.getElementsByClassName("axis");
+    for (var i=0; i<controller.axes.length; i++) {
+      var a = axes[i];
+      a.innerHTML = i + ": " + controller.axes[i].toFixed(4);
+      a.setAttribute("value", controller.axes[i] + 1);
+      gamepadAxes[i] = controller.axes[i];
+    }
+  }
+
+  rAF(updateStatus);
+}
+function scangamepads() {
+  var gamepads = navigator.getGamepads ? navigator.getGamepads()
+    : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() 
+    : []);
+  for (var i=0; i<gamepads.length; i++) {
+    if (gamepads[i]) {
+      if (!(gamepads[i].index in controllers)) {
+        addgamepad(gamepads[i]);
+      } else {
+        controllers[gamepads[i].index] = gamepads[i];
+      }
+    }
+  }
+}
+
+window.addEventListener("gamepadconnected", connecthandler);
+window.addEventListener("gamepaddisconnected", disconnecthandler);
+if (!haveEvents) {
+  setInterval(scangamepads, 500);
+}
+
+// 描画
+setInterval(update, 30);
+function update() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  vx = Math.round(gamepadAxes[0]) * 5;
+  vy = Math.round(gamepadAxes[1]) * 5;
+
+  x += vx;
+  y += vy;
+
+  if (x<0) {
+    x = 0;
+  }
+  if (x>canvas.width-64) {
+    x = canvas.width-64;
+  }
+  if (y<0) {
+    y = 0;
+  }
+  if (y>canvas.height-64) {
+    y = canvas.height-64;
+  }
+
+  if (vx > 0) {
+    ctx.drawImage(img, x, y);
+  } else if (vx < 0) {
+    ctx.drawImage(img, x, y);
+  } else {
+    ctx.drawImage(img, x, y);
+  }
+}
+
+</script>
+</body>
+</html>
