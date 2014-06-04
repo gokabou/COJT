@@ -14,13 +14,11 @@
 </head>
 <body>
 <img src="src/background.png" id="background" class="dnone">
-<img src="src/alligator.png" class="dnone alligator">
+<img src="src/alligator1.png" class="dnone alligator">
 <img src="src/alligator2.png" class="dnone alligator">
 <img src="src/alligator3.png" class="dnone alligator">
 <img src="src/alligator4.png" class="dnone alligator">
-<img src="src/alligator5.png" class="dnone alligator">
-<img src="src/alligator6.png" class="dnone alligator">
-<img src="src/alligator7.png" class="dnone alligator">
+<img src="src/player0.png" class="dnone player">
 <img src="src/player1.png" class="dnone player">
 <img src="src/player2.png" class="dnone player">
 <img src="src/player3.png" class="dnone player">
@@ -28,7 +26,6 @@
 <img src="src/player5.png" class="dnone player">
 <img src="src/player6.png" class="dnone player">
 <img src="src/player7.png" class="dnone player">
-<img src="src/player8.png" class="dnone player">
 <img src="src/miss.png" class="dnone miss">
 <img src="src/missplayer1.png" class="dnone miss">
 <img src="src/missplayer2.png" class="dnone miss">
@@ -42,7 +39,6 @@
 // values of canvas
 var canvas = document.getElementById("canvas");
 var ctx = canvas.getContext("2d");
-ctx.font = "40px";
 // values of images
 var background = document.getElementById("background");
 var alligatorImage = document.getElementsByClassName("alligator");
@@ -50,12 +46,15 @@ var playerImage = document.getElementsByClassName("player");
 var missImage = document.getElementsByClassName("miss");
 // values of games
 var start = 0;
+var entry = 1;
+var loopCount = 0;
 var alligator = [];
 for (var i=0; i<4; i++) {
   var a = new Alligator(i);
   alligator.push(a);
 }
-var alligatorPointMax = 6;
+var alligatorPointMax = 3;
+var playerNumMax = 10;
 var player = new Player;
 var gameCount = 0;
 var missCount = 0;
@@ -185,9 +184,9 @@ function gameLoop() {
 
   if (start) {
     // ゲームの状態を更新
-    update();
+    stateUpdate();
     // 描画関数
-    draw();
+    drawUpdate();
   } else {
     beforeGame();
   }
@@ -203,11 +202,11 @@ function beforeGame() {
   ctx.fillText("Aボタンを押してゲームスタート", 300, 200);
 }
 
-function update() {
+function stateUpdate() {
   // update alligator state
   if (gameCount%30==0) {
     for (var i=0; i<alligator.length; i++) {
-      if (alligator[i].p == 6) {
+      if (alligator[i].p == 3) {
         alligator[i].direction = -1;
       }
       if (alligator[i].p == 0) {
@@ -219,46 +218,144 @@ function update() {
     }
   }
   // update player state
-  if (gameCount%5==0) {
-    if (player.num%2==1) { //when player is jumping
-      player.direction > 0 ? player.num++ : player.num--;
+  switch (player.num) {
+    case 0:
+      if (player.have) {
+        scoreCount++;
+        player.have = 0;
+      }
+      break;
+    case 2:
+      if (player.judge()) {
+        missCount++;
+        player.miss = 1;
+        player.num = 0;
+      }
+      break;
+    case 4:
+      if (player.judge()) {
+        missCount++;
+        player.miss = 1;
+        player.num = 0;
+      }
+      break;
+    case 6:
+      if (player.judge()) {
+        missCount++;
+        player.miss = 1;
+        player.num = 0;
+      }
+      break;
+    case 8:
+      if (player.judge()) {
+        missCount++;
+        player.miss = 1;
+        player.num = 0;
+      }
+      break;
+    case 10:
+      player.have = 1;
+      break;
+    default:
+      break;
+  }
+  if (gameCount%5 == 0) {
+    switch (player.num) {
+      case 1:
+        player.num += player.direction;
+        break;
+      case 3:
+        player.num += player.direction;
+        break;
+      case 5:
+        player.num += player.direction;
+        break;
+      case 7:
+        player.num += player.direction;
+        break;
+      case 9:
+        player.num += player.direction;
+        break;
+      default:
+        break;  
     }
-  // when player onto land
-      if (pressButton[1] && player.num!=10) {
-        player.num++;
-        player.direction = 1;
-      } else if (pressButton[0] && player.num!=0) {
-        player.num--;
-        player.direction = -1;
+    if (pressButton[0]) {
+      switch (player.num) {
+        case 0:
+          break;
+        case 2:
+          player.num = 1;
+          player.direction = -1;
+          break;
+        case 4:
+          player.num = 3;
+          player.direction = -1;
+          break;
+        case 6:
+          player.num = 5;
+          player.direction = -1;
+          break;
+        case 8:
+          player.num = 7;
+          player.direction = -1;
+          break;
+        case 10:
+          player.num = 9;
+          player.direction = -1;
+          break;
+      }
+    } else if (pressButton[1]) {
+      switch (player.num) {
+        case 0:
+          player.num = 1;
+          player.direction = 1;
+          break;
+        case 2:
+          player.num = 3;
+          player.direction = 1;
+          break;
+        case 4:
+          player.num = 5;
+          player.direction = 1;
+          break;
+        case 6:
+          player.num = 7;
+          player.direction = 1;
+          break;
+        case 8:
+          player.num = 9;
+          player.direction = 1;
+          break;
+        case 10:
+          break;
       }
     }
-  if (player.num == 10) {
-    player.have = 1;
-  } else if (player.num == 0) {
-    if (player.have == 1) {
-      scoreCount++;
-    }
-    player.have = 0;
-  }
-  if (player.num > 1 && player.num <9) {
-    if (player.judge()) {
-      player.drawMiss();
-      player.num = 0;
-      missCount++;
+    if (player.miss) {
+      loopCount++;
+      if (loopCount > 5) {
+        player.miss = 0;
+      }
     }
   }
   if (missCount == 3) {
     initGame();
   }
+  if (!pressButton[0] || !pressButton[1]) {
+    entry = 1;
+  }
 }
 
-function draw() {
+function drawUpdate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(background, 0, 0);
   for (var i=0; i<alligator.length; i++) {
     alligator[i].draw();
   }
-  player.draw();
+  if (player.miss) {
+    player.drawMiss()
+  } else {
+    player.draw();
+  }
   for (var i=0; i<missCount; i++) {
     ctx.drawImage(missImage[0], 300+i*64, 0);
   }
@@ -266,9 +363,10 @@ function draw() {
 
 function Alligator(num) {
   this.num = num;
-  this.p = getRandom(7);
+  this.p = getRandom(3);
   this.direction = 1; // if direction is up then -1 else 1
   this.state; // judge to move or not with this value
+  this.miss = 0; // when state is miss then 1
   this.draw = function () {
     ctx.drawImage(alligatorImage[this.p], 180+this.num*120, 262+this.p*10);
   }
@@ -281,34 +379,20 @@ function Player() {
   this.draw = function () {
     switch (this.num) {
       case 0:
-        ctx.drawImage(playerImage[this.num%2+this.have*4], 80, 177);
+        ctx.drawImage(playerImage[this.num+2+this.have*4], 80, 177);
         break;
       case 10:
-        ctx.drawImage(playerImage[this.num%2+2+this.have*4], 660, 177);
+        ctx.drawImage(playerImage[this.num%2+this.have*4], 660, 177);
         break;
       default:
-        if (this.direction>0) {
-          ctx.drawImage(playerImage[this.num%2+this.have*4], 115+(this.num-1)*60, 
-            217-(this.num%2)*100);
-        } else {
-          ctx.drawImage(playerImage[this.num%2+2+this.have*4], 115+(this.num-1)*60,
-            217-(this.num%2)*100);
-        }
-      break;
+        ctx.drawImage(playerImage[this.num%2+(this.direction+1)+this.have*4], 115+(this.num-1)*60, 217-(this.num%2)*100);
+        break;
     }
   }
-  this.drawMiss = function () {
-    var loopCount = 0;
-    function drawLoop() {
-      ctx.drawImage(missImage[loopCount%2+1], 115+(this.num-1)*60, 230);
-      loopCount++;
-      if (loopCount < 10) {
-        setTimeout("this.drawLoop()", 500);
-      }
-    }
-    loopCount = 0;
+  this.drawMiss = function() {
+    ctx.drawImage(missImage[loopCount%2+1], 180+(this.num-1)*60, 230);
   }
-  this.judge = function () {
+  this.judge = function() {
     // if player not be onto alligator then return 1 else return 0
     if (alligator[this.num/2 - 1].p > 1) {
       return 1;
@@ -330,7 +414,9 @@ function initGame() {
   gameCount = 0;
   missCount = 0;
   scoreCount = 0;
+  loopCount = 0;
   player.num = 0;
+  player.miss = 0;
   start = 0;
 }
 </script>
