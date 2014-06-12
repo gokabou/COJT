@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ライオン</title>
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<h1>ライオンゲーム</h1>
+<canvas id="canvas" width="800" height="450"></canvas>
+<img src="src/lion_miss.png" id="missImage" class="none"></img>
+<img src="src/player.png" id="playerImage" class="none"></img>
+<img src="src/lion0.png" id="lionImage0" class="none"></img>
+<img src="src/lion1.png" id="lionImage1" class="none"></img>
+<img src="src/button1.png" id="buttonImage" class="none"></img>
+<img src="src/arrow1.png" id="arrowImage1" class="none"></img>
+<img src="src/arrow2.png" id="arrowImage2" class="none"></img>
+<audio src="src/start_game_sound.mp3" class="none" id="startSound"></audio>
+<audio src="src/move_sound.mp3" class="none" id="moveSound"></audio>
+<audio src="src/gain_score.mp3" class="none" id="scoreSound"></audio>
+
+<h2>説明!!</h2>
+<p>ライオンをオリから出すな！</p>
+
+<h2>操作方法</h2>
+<ul>
+<li>キーボードの場合</li>
+<div class="nodeco">
+<ul>
+<li>A:左の人を上に移動</li>
+<li>Z:左の人を下に移動</li>
+<li>K:右の人を上に移動</li>
+<li>M:右の人を下に移動</li>
+</ul>
+</div>
+<li>XBOX360コントローラーの場合</li>
+<div class="nodeco">
+<ul>
+<li>十字キー上:左の人を上に移動</li>
+<li>十字キー下:左の人を下に移動</li>
+<li>Yボタン:右の人を上に移動</li>
+<li>Aボタン:右の人を下に移動</li>
+</ul>
+</div>
+</ul>
+
+<script>
+/* values of gamepad */
+var gps = {};
+var gamepadFlag = 0;
+var rAF = window.mozRequestAnimationFrame ||
+window.webkitRequestAnimationFrame ||
+window.requestAnimationFrame;
+
+/* values of images */
+var missImage = document.getElementById("missImage"); 
+var playerImage = document.getElementById("playerImage");
+var lionImage0 = document.getElementById("lionImage0");
+var lionImage1 = document.getElementById("lionImage1");
+var buttonImage = document.getElementById("buttonImage");
+var arrowImage = document.getElementById("arrowImage");
+
+/* values of audios */
+var startSound = document.getElementById("startSound");
+var moveSound = document.getElementById("moveSound");
+var scoreSound = document.getElementById("scoreSound");
+
+/* values of canvas */
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+var bgc = "#CEE5CE";
+var edge = "#B21111";
+var body = "#E5D844";
+var orange = "#F7955C";
+var black = "#000000";
+var width = canvas.width;
+var height = canvas.height;
+var dWidth = width - 16*20; // display width
+var dHeight = height - 9*20; // display height
+
+/* values of game */
+/* Player(reverce) */
+var player = [];
+for (var i=0; i<2; i++) {
+  var a = new Player();
+  player.push(a);
+}
+player[1].reverce = 1;
+var lion = [];
+for (var i=0; i<2; i++) {
+  var a = new Lion();
+  lion.push(a);
+  lion[i].line = 1;
+  lion[i].p = 2;
+}
+lion[1].direction = 1; // lion[1] direction is right
+var gameCount = 0;
+var gameoverAnimationCount = 0;
+var missAnimationCount = 0;
+
+/* values of game settings */
+var gameMode = 0;
+var missCount = 0;
+var scoreCount = 0;
+var missFlag = new Array(0, 0);
+var gameoverFlag = 0;
+var startFlag = 0;
+var gameSpeed = 120;
+var entry = 0;
+var key = {A: false, Z: false, K: false, M: false, Enter: false};
+
+/* value of possibility to come out the cage */
+var p = 6;
+
+/* input the keybord */
+document.addEventListener("keyup", onKeyUp, false);
+function onKeyUp(e) {
+  if (e.keyCode == 65) {
+    key.A = true;
+  } else if (e.keyCode == 90) {
+    key.Z = true;
+  } else if (e.keyCode == 75) {
+    key.K = true;
+  } else if (e.keyCode == 77) {
+    key.M = true;
+  } else if (e.keyCode == 13) {
+    key.Enter = true;
+  }
+}
+
+function gameLoop() {
+  gamepadUpdate();
+  draw();
+  speedUpdate();
+  reset();
+
+  rAF(gameLoop);
+}
+gameLoop();
+
+function reset() {
+  var button = gps[0].buttons;
+  if (button[4].pressed && button[5].pressed && button[6].pressed 
+      && button[7].pressed) {
+    gameInit();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+  drawBody();
+  drawDisplay();
+  if (startFlag == 1) {
+    gameCount++;
+    drawPlayer();
+    if (missFlag[0] == 0 && missFlag[1] == 0) {
+      updateLion();
+    }
+    if (missFlag[0] == 1) {
+      missAnimation(0);
+    } else {
+      lion[0].draw();
+    }
+    if (missFlag[1] == 1) {
+      missAnimation(1);
+    } else {
+      lion[1].draw();
+    }
+    drawMissIcon();
+    drawScore();
+    if (missCount == 3) {
+      gameoverFlag = 1;
+      startFlag = 0;
+    }
+  } else if (gameoverFlag == 1) {
+    gameoverAnimationCount++;
+    drawMissIcon();
+    ctx.font = "40px 'Hiragino Kaku Gothic Pro'";
+    ctx.fillText("GAME OVER", 270, height/2+30);
+    if (gameoverAnimationCount == 200) {
+      gameInit();
+    }
+  } else {
+    ctx.font = "35px 'Hiragino Kaku Gothic Pro'";
+    ctx.fillText("Press START button to start the game!", 50, height/2-10);
+    var button = gps[0].buttons;
+    if (button[9].pressed || key.Enter) {
+      startFlag = 1;
+      key.Enter = false;
+      startSound.play();
+    }
+  }
+}
+
+function missAnimation(e) {
+  missAnimationCount++;
+  lion[e].draw();
+  if (missAnimationCount % 100 == 0) {
+    missFlag[e] = 0;
+    missCount++;
+  }
+}
+
+function speedUpdate() {
+  if (scoreCount < 10) {
+    gameSpeed = 100;
+  } else if (scoreCount < 20) {
+    gameSpeed = 90;
+  } else if (scoreCount < 30) {
+    gameSpeed = 80;
+  } else if (scoreCount < 40) {
+    gameSpeed = 70;
+  } else if (scoreCount < 50) {
+    gameSpeed = 60;
+  } else if (scoreCount < 80){
+    gameSpeed = 50;
+  } else if (scoreCount < 100) {
+    gameSpeed = 40;
+  } else if (scoreCount < 150) {
+    gameSpeed = 30;
+  } else {
+    gameSpeed = 20;
+  }
+}
+
+function gameInit() {
+  gameCount = 0;
+  missCount = 0;
+  gameoverFlag = 0;
+  startFlag = 0;
+  scoreCount = 0;
+  missAnimationCount = 0;
+  for (var i=0; i<2; i++) {
+    lion[i].p = 2;
+    lion[i].line = 1;
+  }
+}
+
+function drawBody() {
+  ctx.beginPath();
+  ctx.save();
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = body;
+  ctx.fillRect(10, 10, width-20, height-20);
+  ctx.fillStyle = bgc;
+  ctx.fillRect(160, 90, dWidth, dHeight);
+  ctx.font = "32px 'Hiragino Kaku Gothic Pro'";
+  ctx.fillStyle = black;
+  ctx.fillText("LION", width-120, 70);
+  ctx.save();
+  ctx.translate(0, -20);
+  ctx.fillText("A", 40, 340);
+  ctx.drawImage(buttonImage, 80, 300);
+  ctx.fillText("Z", 40, 410);
+  ctx.drawImage(buttonImage, 80, 370);
+  ctx.fillText("K", 740, 340);
+  ctx.drawImage(buttonImage, 670, 300);
+  ctx.fillText("M", 740, 410);
+  ctx.drawImage(buttonImage, 670, 370);
+  ctx.drawImage(arrowImage1, 90, 250);
+  ctx.drawImage(arrowImage2, 90, 420);
+  ctx.drawImage(arrowImage1, 680, 250);
+  ctx.drawImage(arrowImage2, 680, 420);
+  ctx.restore();
+  ctx.restore();
+}
+function drawDisplay() {
+  var y = 40;
+  var weight1 = 2; // line weight of vartical lines
+  var weight2 = 4; // line weight of edge and center
+  var gameModeText;
+  ctx.beginPath();
+  ctx.save();
+  ctx.translate(160, 90); // translate axes to point (0, 0) of display
+  if (gameMode == 0) { // gameMode 0 is game A and 1 is B
+    gameModeText = "GAME A";
+  } else {
+    gameModeText = "GAME B";
+  }
+  ctx.font = "16px 'Hiragino Kaku Gothic Pro'";
+  ctx.fillText(gameModeText, 50, 268);
+  ctx.translate(140, 55); // translate axes to point (0, 0) of cage
+  ctx.font = "14px 'Hiragino Kaku Gothic Pro'";
+  ctx.fillText("MISS", 0, -5);
+
+  /* draw cage lines */
+  ctx.strokeStyle = orange;
+  /* draw horizontal lines */
+  ctx.save();
+  for (var i=0; i<5; i++) {
+    ctx.beginPath();
+    if (i==0 || i== 4) {
+      ctx.lineWidth = weight2;
+    } else {
+      ctx.lineWidth = weight1;
+    }
+    ctx.moveTo(0, i*50);
+    ctx.lineTo(200, i*50);
+    ctx.stroke();
+  }
+  ctx.restore();
+  /* draw edge lines */
+  ctx.beginPath();
+  ctx.save();
+  ctx.lineWidth = weight2;
+  for (var i=0; i<2; i++) {
+    ctx.moveTo(i*200, 0);
+    ctx.lineTo(i*200, 60);
+    for (var j=0; j<2; j++) {
+      ctx.moveTo(i*200, 90+j*50);
+      ctx.lineTo(i*200, 110+j*50);
+    }
+    ctx.moveTo(i*200, 190);
+    ctx.lineTo(i*200, 200);
+  }
+  ctx.stroke();
+  ctx.restore();
+  /* draw vartical lines */
+  ctx.save();
+  for (var i=0; i<9; i++) {
+    ctx.beginPath();
+    if (i==4) {
+      ctx.lineWidth = weight2;
+    } else {
+      ctx.lineWidth = weight1;
+    }
+    ctx.moveTo(20*(i+1), 0);
+    ctx.lineTo(20*(i+1), 200);
+    ctx.stroke();
+  }
+  ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawMissIcon() {
+  ctx.beginPath();
+  ctx.save();
+  ctx.translate(160, 90); // translate axes to point (0, 0) of display
+  for (var i=0; i<missCount; i++) {
+    ctx.drawImage(missImage, 108+i*35, 4);
+  }
+  ctx.restore();  
+}
+
+function drawScore() {
+  ctx.beginPath();
+  ctx.save();
+  ctx.translate(160, 90); // translate axes to point (0, 0) of display
+  ctx.font = "32px 'Hiragino Kaku Gothic Pro'";
+  if (scoreCount < 10) {
+    ctx.fillText(scoreCount, 440, 32);
+  } else if (scoreCount < 100) {
+    ctx.fillText(scoreCount, 418, 32);
+  } else if (scoreCount < 1000) {
+    ctx.fillText(scoreCount, 400, 32);
+  } else {
+    ctx.fillText("ERROR", 350, 32);
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  var button = gps[0].buttons;
+  if (entry == 0) {
+    if (button[0].pressed || key.M) {
+      player[1].p++;
+      key.M = false;
+      if (player[1].p > 2) {
+        player[1].p = 2;
+      }
+    }
+    if (button[3].pressed || key.K) {
+      player[1].p--;
+      key.K = false;
+      if (player[1].p < 0) {
+        player[1].p = 0;
+      }
+    }
+    if (button[13].pressed || key.Z) {
+      player[0].p++;
+      key.Z = false;
+      if (player[0].p > 2) {
+        player[0].p = 2;
+      }
+    }
+    if (button[12].pressed || key.A) {
+      player[0].p--;
+      key.A = false;
+      if (player[0].p < 0) {
+        player[0].p = 0;
+      }
+    }
+    entry++;
+  }
+  if (!button[0].pressed && !button[3].pressed && !button[13].pressed
+      && !button[12].pressed) {
+    entry = 0;
+  }
+  ctx.save();
+  ctx.translate(160, 90); // translate axes to point (0, 0) of display
+  player[0].draw();
+  player[1].draw();
+  ctx.restore();
+}
+function Player() {
+  this.x = 60;
+  this.p = 0;
+  this.reverce = 0;
+  this.draw = function() {
+    ctx.save();
+    if (this.reverce==1) {
+      this.x = -420;
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(playerImage, this.x, 110+this.p*50);
+    ctx.restore();
+  }  
+}
+
+function Lion() {
+  this.x;
+  this.y;
+  this.line;
+  this.p;
+  this.direction = -1; // left is -1 right is 1
+
+  this.draw = function() {
+    ctx.save();
+    ctx.translate(160, 90); // translate axes to point (0, 0) of display
+    if (this.p==0) {
+      drawImage = lionImage1;
+    } else {
+      drawImage = lionImage0;
+    }
+    if (this.direction < 0) {
+      ctx.drawImage(drawImage, this.x, this.y);
+    } else {
+      ctx.scale(-1, 1);
+      ctx.drawImage(drawImage, this.x, this.y);
+    }
+    ctx.restore();
+  }
+
+  this.update = function() {
+    if (this.direction < 0) {
+      this.x = this.p*48+92;
+    } else {
+      this.x = this.p*48-388;
+    }
+    this.y = this.line*50+106;
+  }
+
+  this.judge = function(i) {
+    if (player[i].p == this.line) {
+      scoreCount++;
+      scoreSound.play();
+    } else {
+      missFlag[i] = 1;
+    }
+  }
+}
+
+function updateLion() {
+  if (gameCount % gameSpeed == 0) {
+    moveSound.play();
+    switch (lion[0].p) {
+      case 0:
+        lion[0].p++;
+        break;
+      case 1:
+        if (getRandom(10) < p) {
+          lion[0].p--;
+          lion[0].judge(0);
+        } else {
+          if (getRandom(10) < 5) {
+            lion[0].p++;
+          } else {
+            if (getRandom(10) < 5) {
+              lion[0].line++;
+            } else {
+              lion[0].line--;
+            }
+          }
+        }
+        break;
+      case 2:
+        if (getRandom(10) < 5) {
+          lion[0].p--;
+        } else {
+          if (getRandom(10) < 5) {
+            lion[0].line++;
+          } else {
+            lion[0].line--;
+          }
+        }
+        break;
+    }
+    if (lion[0].line < 0) {
+      lion[0].line = 0;
+    }
+    if (lion[0].line > 2) {
+      lion[0].line = 2;
+    }
+    lion[0].update();
+  }
+  if ((gameCount+gameSpeed/2) % gameSpeed == 0) {
+    moveSound.play();
+    switch (lion[1].p) {
+      case 0:
+        lion[1].p++;
+        break;
+      case 1:
+        if (getRandom(10) < p) {
+          lion[1].p--;
+          lion[1].judge(1);
+        } else {
+          if (getRandom(10) < 5) {
+            lion[1].p++;
+          } else {
+            if (getRandom(10) < 5) {
+              lion[1].line++;
+            } else {
+              lion[1].line--;
+            }
+          }
+        }
+        break;
+      case 2:
+        if (getRandom(10) < 5) {
+          lion[1].p--;
+        } else {
+          if (getRandom(10) < 5) {
+            lion[1].line++;
+          } else {
+            lion[1].line--;
+          }
+        }
+        break;
+    }
+    if (lion[1].line < 0) {
+      lion[1].line = 0;
+    }
+    if (lion[1].line > 2) {
+      lion[1].line = 2;
+    }
+    lion[1].update();
+  }
+}
+
+function getRandom(max) {
+  return (Math.floor(Math.random()*(max+1)));
+}
+
+function gamepadUpdate() {	
+  addGamepad();
+}
+
+function addGamepad() {
+  (function(undefined) { // judge gp is undefined or not
+   for (var i=0; i<4; i++) {
+   var gp = navigator.getGamepads()[i];
+   gps[i] = gp;
+   }
+  })();
+}
+</script>
+</body>
+</html>
